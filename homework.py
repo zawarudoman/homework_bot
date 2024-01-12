@@ -93,10 +93,7 @@ def get_api_answer(timestamp):
         logging.info(f'Отправка запроса на {ENDPOINT}, параметры: {params}')
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
         if response.status_code != HTTPStatus.OK:
-            message = (
-                f'Эндпоинт {response.url} получил статус отличный от 200.'
-            )
-            return RequestStatusNotOk
+            return RequestStatusNotOk(f'Эндпоинт {response.url} получил статус отличный от 200.')
     except requests.RequestException as error:
         return Exception(f'Возникла ошибка: {error}')
     return response.json()
@@ -105,12 +102,12 @@ def get_api_answer(timestamp):
 def check_response(response):
     """Check response for correct."""
     if not isinstance(response, dict):
-        raise Exception('Получен не верный тип данных')
-    if response['homeworks'] is None:
-        raise EmptyAnswerAPI('Пустой ответ после запроса к АПИ')
+        raise TypeError('Получен не верный тип данных')
     homeworks = response.get('homeworks')
+    if homeworks is None:
+        raise Exception('Пустой ответ после запроса к АПИ')
     if not isinstance(homeworks, list):
-        raise Exception('Домашки пришли не списком')
+        raise TypeError('Домашки пришли не списком')
     return homeworks
 
 
