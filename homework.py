@@ -10,6 +10,10 @@ import telegram
 from dotenv import load_dotenv
 from telegram import Bot
 
+from exception import RequestStatusNotOkError,\
+    EmptyAnswerAPIError, RequestAPIAnswerError,\
+    NameHomeworkMissingError, VerdictMissingHomework
+
 load_dotenv()
 
 logger = logging.getLogger(__name__)
@@ -29,18 +33,6 @@ HOMEWORK_VERDICTS = {
     "reviewing": "Работа взята на проверку ревьюером.",
     "rejected": "Работа проверена: у ревьюера есть замечания.",
 }
-
-
-class RequestStatusNotOkError(Exception):
-    """Exception for status request != 200."""
-
-    pass
-
-
-class EmptyAnswerAPIError(Exception):
-    """Empty answer in api request."""
-
-    pass
 
 
 def handle_exception(exceptions: tuple[type[Exception]] = (Exception,)):
@@ -74,7 +66,7 @@ def check_tokens():
             )
             sys.exit(
                 f"Отсутствует переменная среды {variables.get(variable)},"
-                f" невозможно продолжить работу"
+                " невозможно продолжить работу"
             )
 
 
@@ -101,7 +93,7 @@ def get_api_answer(timestamp):
                 f"Эндпоинт {response.url} получил статус отличный от 200."
             )
     except requests.RequestException as error:
-        return Exception(f"Возникла ошибка: {error}")
+        return RequestAPIAnswerError(f"Возникла ошибка: {error}")
     return response.json()
 
 
@@ -111,7 +103,7 @@ def check_response(response):
         raise TypeError("Получен не верный тип данных")
     homeworks = response.get("homeworks")
     if homeworks is None:
-        raise RequestStatusNotOkError("Пустой ответ после запроса к АПИ")
+        raise EmptyAnswerAPIError
     if not isinstance(homeworks, list):
         raise TypeError("Домашки пришли не списком")
     return homeworks
@@ -121,11 +113,11 @@ def parse_status(homework: dict):
     """Parse status in response."""
     homework_name = homework.get("homework_name")
     if not homework_name:
-        raise Exception("Отсутствует название домашней работы")
+        raise NameHomeworkMissingError("Отсутствует название домашней работы")
     homework_status = homework.get("status")
     verdict = HOMEWORK_VERDICTS.get(homework_status)
     if not verdict:
-        raise Exception(f"Статус отсутсвует или не задан: {verdict}")
+        raise VerdictMissingHomework(f"Статус отсутствует или не задан: {verdict}")
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
@@ -143,19 +135,20 @@ def main():
             response = get_api_answer(timestamp)
             timestamp = response_api.json().get("current_date", timestamp)
             homeworks = check_response(response)
-            if len(homeworks) != 0:
+            if homeworks:
                 homework = homeworks[0]
                 message = parse_status(homework)
-                if last_message != message:
-                    send_message(bot, message)
-                    last_message = message
-                    logger.debug(f"Новый статус - {message}")
-                else:
-                    logger.debug("Отсутствуют новые статусы")
             else:
                 logger.debug("Отсутствуют новые статусы")
-        except EmptyAnswerAPIError:
-            logger.error(EmptyAnswerAPIError)
+                message = parse_status(homework)
+            if last_message != message:
+                send_message(bot, message)
+                last_message = message
+                logger.debug(f"Новый статус - {message}")
+            else:
+                logger.debug("Отсутствуют новые статусы")
+        except EmptyAnswerAPIError as error:
+            logger.error(f"Сбой в работе программы: {error}")
         except Exception as error:
             message = f"Сбой в работе программы: {error}"
             if last_message != message:
