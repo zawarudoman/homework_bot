@@ -103,7 +103,7 @@ def check_response(response):
         raise TypeError("Получен не верный тип данных")
     homeworks = response.get("homeworks")
     if homeworks is None:
-        raise EmptyAnswerAPIError
+        raise EmptyAnswerAPIError('Словарь с домашними работами пуст')
     if not isinstance(homeworks, list):
         raise TypeError("Домашки пришли не списком")
     return homeworks
@@ -131,18 +131,15 @@ def main():
     last_message = ""
     while True:
         try:
-            response_api = requests.get(
-                ENDPOINT, headers=HEADERS, params={"from_date": timestamp}
-            )
             response = get_api_answer(timestamp)
-            timestamp = response_api.json().get("current_date", timestamp)
+            timestamp = response.get("current_date", timestamp)
             homeworks = check_response(response)
             if homeworks:
                 homework = homeworks[0]
                 message = parse_status(homework)
             else:
                 logger.debug("Отсутствуют новые статусы")
-                message = parse_status(homework)
+                message = 'Отсутствуют новые статусы'
             if last_message != message:
                 send_message(bot, message)
                 last_message = message

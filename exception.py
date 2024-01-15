@@ -19,9 +19,4 @@ class VerdictMissingHomework(Exception):
 
 
 class EmptyAnswerAPIError(Exception):
-    def __init__(self, message):
-        self.message = message
-        super().__init__(self.message)
-
-    def __str__(self):
-        return f"Пустой ответ от API: {self.message}"
+    pass
