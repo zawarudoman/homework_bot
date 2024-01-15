@@ -117,7 +117,9 @@ def parse_status(homework: dict):
     homework_status = homework.get("status")
     verdict = HOMEWORK_VERDICTS.get(homework_status)
     if not verdict:
-        raise VerdictMissingHomework(f"Статус отсутствует или не задан: {verdict}")
+        raise VerdictMissingHomework(
+            f"Статус отсутствует или не задан: {verdict}"
+        )
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
